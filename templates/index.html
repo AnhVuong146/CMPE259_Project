@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SJSU MSAI Virtual Advisor</title>
+  <style>
+    :root {
+      --sjsu-blue: #0055A2;
+      --sjsu-gold: #E5A823;
+      --bg: #f4f6f9;
+      --bubble-user: #0055A2;
+      --bubble-bot: #ffffff;
+      --border: #dde3ec;
+      --text: #1a1a2e;
+      --muted: #6b7280;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Header ── */
+    header {
+      background: var(--sjsu-blue);
+      color: #fff;
+      padding: 14px 24px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      box-shadow: 0 2px 8px rgba(0,0,0,.2);
+      flex-shrink: 0;
+    }
+    header .logo {
+      width: 40px; height: 40px;
+      background: var(--sjsu-gold);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 900; font-size: 16px; color: var(--sjsu-blue);
+      flex-shrink: 0;
+    }
+    header h1 { font-size: 18px; font-weight: 700; line-height: 1.2; }
+    header p  { font-size: 12px; opacity: .8; margin-top: 2px; }
+
+    /* ── Controls bar ── */
+    .controls {
+      background: #fff;
+      border-bottom: 1px solid var(--border);
+      padding: 10px 24px;
+      display: flex;
+      gap: 16px;
+      align-items: center;
+      flex-wrap: wrap;
+      flex-shrink: 0;
+    }
+    .controls label { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+    .controls select {
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 5px 10px;
+      font-size: 13px;
+      background: #fff;
+      cursor: pointer;
+      color: var(--text);
+    }
+    .controls select:focus { outline: none; border-color: var(--sjsu-blue); }
+    .pill {
+      font-size: 11px; font-weight: 600; padding: 3px 10px;
+      border-radius: 99px; background: #e8f0fe; color: var(--sjsu-blue);
+    }
+
+    /* ── Chat area ── */
+    #chat {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    .msg { display: flex; gap: 10px; align-items: flex-start; max-width: 780px; }
+    .msg.user  { align-self: flex-end; flex-direction: row-reverse; }
+    .msg.bot   { align-self: flex-start; }
+
+    .avatar {
+      width: 32px; height: 32px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px; font-weight: 700; flex-shrink: 0;
+    }
+    .msg.user .avatar { background: var(--sjsu-gold); color: var(--sjsu-blue); }
+    .msg.bot  .avatar { background: var(--sjsu-blue); color: #fff; }
+
+    .bubble {
+      padding: 12px 16px;
+      border-radius: 14px;
+      font-size: 14px;
+      line-height: 1.6;
+      max-width: 640px;
+      white-space: pre-wrap;
+    }
+    .msg.user .bubble {
+      background: var(--sjsu-blue);
+      color: #fff;
+      border-bottom-right-radius: 4px;
+    }
+    .msg.bot .bubble {
+      background: var(--bubble-bot);
+      border: 1px solid var(--border);
+      border-bottom-left-radius: 4px;
+      box-shadow: 0 1px 4px rgba(0,0,0,.06);
+    }
+
+    /* meta info below bot bubble */
+    .meta-row {
+      display: flex; gap: 8px; align-items: center;
+      margin-top: 5px; flex-wrap: wrap;
+    }
+    .badge {
+      font-size: 11px; padding: 2px 8px; border-radius: 99px; font-weight: 600;
+    }
+    .badge.model    { background: #fef3c7; color: #92400e; }
+    .badge.strategy { background: #ede9fe; color: #5b21b6; }
+    .badge.latency  { background: #dcfce7; color: #166534; }
+    .badge.intent   { background: #e0f2fe; color: #0369a1; }
+
+    /* tool call accordion */
+    details.tool-block {
+      margin-top: 6px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      font-size: 12px;
+    }
+    details.tool-block summary {
+      padding: 7px 12px;
+      cursor: pointer;
+      background: #f8fafc;
+      user-select: none;
+      color: var(--muted);
+      font-weight: 600;
+      list-style: none;
+    }
+    details.tool-block summary::before { content: "▶ "; font-size: 10px; }
+    details.tool-block[open] summary::before { content: "▼ "; }
+    details.tool-block pre {
+      padding: 10px 12px;
+      background: #1e1e2e;
+      color: #cdd6f4;
+      overflow-x: auto;
+      font-size: 11px;
+      line-height: 1.5;
+    }
+
+    /* ── Typing indicator ── */
+    .typing .bubble {
+      display: flex; gap: 5px; align-items: center; padding: 14px 16px;
+    }
+    .dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: var(--muted);
+      animation: bounce 1.2s infinite;
+    }
+    .dot:nth-child(2) { animation-delay: .2s; }
+    .dot:nth-child(3) { animation-delay: .4s; }
+    @keyframes bounce {
+      0%, 80%, 100% { transform: translateY(0); }
+      40%           { transform: translateY(-6px); }
+    }
+
+    /* ── Input bar ── */
+    .input-bar {
+      background: #fff;
+      border-top: 1px solid var(--border);
+      padding: 14px 24px;
+      display: flex;
+      gap: 10px;
+      flex-shrink: 0;
+    }
+    #input {
+      flex: 1;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-size: 14px;
+      resize: none;
+      line-height: 1.5;
+      max-height: 120px;
+      overflow-y: auto;
+      outline: none;
+      font-family: inherit;
+      color: var(--text);
+    }
+    #input:focus { border-color: var(--sjsu-blue); }
+    #sendBtn {
+      background: var(--sjsu-blue);
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      padding: 0 20px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background .15s;
+      flex-shrink: 0;
+    }
+    #sendBtn:hover    { background: #003f7a; }
+    #sendBtn:disabled { background: #94a3b8; cursor: not-allowed; }
+
+    /* ── Welcome card ── */
+    .welcome {
+      align-self: center;
+      text-align: center;
+      padding: 32px 24px;
+      max-width: 500px;
+    }
+    .welcome .icon { font-size: 48px; margin-bottom: 12px; }
+    .welcome h2 { font-size: 20px; color: var(--sjsu-blue); margin-bottom: 8px; }
+    .welcome p  { font-size: 14px; color: var(--muted); line-height: 1.6; }
+    .suggestions {
+      display: flex; flex-wrap: wrap; gap: 8px;
+      justify-content: center; margin-top: 18px;
+    }
+    .suggestion {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 14px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: border-color .15s, box-shadow .15s;
+      text-align: left;
+    }
+    .suggestion:hover {
+      border-color: var(--sjsu-blue);
+      box-shadow: 0 2px 8px rgba(0,85,162,.12);
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">SJ</div>
+  <div>
+    <h1>SJSU MSAI Virtual Advisor</h1>
+    <p>CMPE 259 · NLP Project</p>
+  </div>
+</header>
+
+<div class="controls">
+  <label>Model</label>
+  <select id="modelSel">
+    <option value="tinyllama">TinyLlama-1.1B</option>
+    <option value="qwen">Qwen2-0.5B</option>
+  </select>
+  <label>Strategy</label>
+  <select id="stratSel">
+    <option value="meta">Meta Prompting</option>
+    <option value="chain">Prompt Chaining</option>
+    <option value="reflect">Self-Reflection</option>
+  </select>
+  <span class="pill" id="statusPill">Ready</span>
+</div>
+
+<div id="chat">
+  <div class="welcome" id="welcome">
+    <div class="icon">🎓</div>
+    <h2>Hello! I'm your MSAI Academic Advisor.</h2>
+    <p>Ask me anything about the SJSU MS in Artificial Intelligence program — courses, prerequisites, degree requirements, and more.</p>
+    <div class="suggestions">
+      <div class="suggestion" onclick="sendSuggestion(this)">What are the prerequisites for CMPE 258?</div>
+      <div class="suggestion" onclick="sendSuggestion(this)">What are the core courses?</div>
+      <div class="suggestion" onclick="sendSuggestion(this)">How many units do I need to graduate?</div>
+      <div class="suggestion" onclick="sendSuggestion(this)">What courses are in the Data Science specialization?</div>
+      <div class="suggestion" onclick="sendSuggestion(this)">What is the GWAR requirement?</div>
+      <div class="suggestion" onclick="sendSuggestion(this)">What are my culminating experience options?</div>
+    </div>
+  </div>
+</div>
+
+<div class="input-bar">
+  <textarea id="input" rows="1" placeholder="Ask about courses, prerequisites, degree requirements…"></textarea>
+  <button id="sendBtn" onclick="sendMessage()">Send</button>
+</div>
+
+<script>
+  const chatEl   = document.getElementById("chat");
+  const inputEl  = document.getElementById("input");
+  const sendBtn  = document.getElementById("sendBtn");
+  const statusEl = document.getElementById("statusPill");
+
+  // auto-resize textarea
+  inputEl.addEventListener("input", () => {
+    inputEl.style.height = "auto";
+    inputEl.style.height = Math.min(inputEl.scrollHeight, 120) + "px";
+  });
+
+  inputEl.addEventListener("keydown", e => {
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+  });
+
+  function sendSuggestion(el) {
+    inputEl.value = el.textContent;
+    sendMessage();
+  }
+
+  function appendMsg(role, text) {
+    const welcome = document.getElementById("welcome");
+    if (welcome) welcome.remove();
+
+    const msg = document.createElement("div");
+    msg.className = `msg ${role}`;
+    msg.innerHTML = `
+      <div class="avatar">${role === "user" ? "You" : "VA"}</div>
+      <div class="bubble">${escHtml(text)}</div>`;
+    chatEl.appendChild(msg);
+    chatEl.scrollTop = chatEl.scrollHeight;
+    return msg;
+  }
+
+  function appendBotResult(data) {
+    const welcome = document.getElementById("welcome");
+    if (welcome) welcome.remove();
+
+    const msg = document.createElement("div");
+    msg.className = "msg bot";
+
+    const modelLabel    = data.model === "tinyllama" ? "TinyLlama-1.1B" : "Qwen2-0.5B";
+    const strategyLabel = { meta: "Meta Prompting", chain: "Prompt Chaining", reflect: "Self-Reflection" }[data.strategy];
+
+    let toolHtml = "";
+    if (data.tool_calls && data.tool_calls.length > 0) {
+      data.tool_calls.forEach((tc, i) => {
+        const result = data.tool_results?.[i] ?? "";
+        toolHtml += `
+          <details class="tool-block">
+            <summary>Tool: ${escHtml(tc.tool)} — "${escHtml(tc.query)}"</summary>
+            <pre>${escHtml(result)}</pre>
+          </details>`;
+      });
+    }
+
+    let intentBadge = data.intent
+      ? `<span class="badge intent">Intent: ${escHtml(data.intent)}</span>` : "";
+
+    msg.innerHTML = `
+      <div class="avatar">VA</div>
+      <div>
+        <div class="bubble">${escHtml(data.response)}</div>
+        ${toolHtml}
+        <div class="meta-row">
+          <span class="badge model">${modelLabel}</span>
+          <span class="badge strategy">${strategyLabel}</span>
+          ${intentBadge}
+          <span class="badge latency">${data.latency}s</span>
+        </div>
+      </div>`;
+
+    chatEl.appendChild(msg);
+    chatEl.scrollTop = chatEl.scrollHeight;
+  }
+
+  function showTyping() {
+    const msg = document.createElement("div");
+    msg.className = "msg bot typing";
+    msg.id = "typing";
+    msg.innerHTML = `
+      <div class="avatar">VA</div>
+      <div class="bubble">
+        <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+      </div>`;
+    chatEl.appendChild(msg);
+    chatEl.scrollTop = chatEl.scrollHeight;
+  }
+
+  function removeTyping() {
+    const t = document.getElementById("typing");
+    if (t) t.remove();
+  }
+
+  function escHtml(str) {
+    return String(str)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  }
+
+  async function sendMessage() {
+    const query    = inputEl.value.trim();
+    const model    = document.getElementById("modelSel").value;
+    const strategy = document.getElementById("stratSel").value;
+
+    if (!query) return;
+
+    appendMsg("user", query);
+    inputEl.value = "";
+    inputEl.style.height = "auto";
+    sendBtn.disabled = true;
+    statusEl.textContent = "Thinking…";
+    statusEl.style.background = "#fef9c3";
+    statusEl.style.color = "#854d0e";
+    showTyping();
+
+    try {
+      const res = await fetch("/query", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query, model, strategy }),
+      });
+      const data = await res.json();
+      removeTyping();
+
+      if (data.error) {
+        appendMsg("bot", `Error: ${data.error}`);
+      } else {
+        appendBotResult(data);
+      }
+    } catch (err) {
+      removeTyping();
+      appendMsg("bot", "Network error — is the server running?");
+    }
+
+    sendBtn.disabled = false;
+    statusEl.textContent = "Ready";
+    statusEl.style.background = "";
+    statusEl.style.color = "";
+  }
+</script>
+</body>
+</html>
