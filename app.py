@@ -9,7 +9,7 @@ warnings.filterwarnings("ignore")
 
 app = Flask(__name__)
 
-# ── Database ──────────────────────────────────────────────────────────────────
+#Database 
 DB_PATH = os.path.join(os.path.dirname(__file__), "sjsu_msai.db")
 
 APPROVED_DOMAINS = ["sjsu.edu", "catalog.sjsu.edu", "www.sjsu.edu"]
